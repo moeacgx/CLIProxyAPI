@@ -157,6 +157,10 @@ func synthesizeFileAuths(ctx *SynthesisContext, fullPath string, data []byte) []
 			}
 		}
 	}
+	// Apply custom headers/user agent from auth file metadata (e.g. Codex UA from register side).
+	if headers := extractAuthHeadersFromMetadata(metadata); len(headers) > 0 {
+		addConfigHeadersToAttrs(headers, a.Attributes)
+	}
 	ApplyAuthExcludedModelsMeta(a, cfg, perAccountExcluded, "oauth")
 	// For codex auth files, extract plan_type from the JWT id_token.
 	if provider == "codex" {
@@ -270,6 +274,56 @@ func SynthesizeGeminiVirtualAuths(primary *coreauth.Auth, metadata map[string]an
 		virtuals = append(virtuals, virtual)
 	}
 	return virtuals
+}
+
+func extractAuthHeadersFromMetadata(metadata map[string]any) map[string]string {
+	if metadata == nil {
+		return nil
+	}
+	headers := map[string]string{}
+	if raw, ok := metadata["headers"]; ok {
+		switch v := raw.(type) {
+		case map[string]any:
+			for hk, hv := range v {
+				key := strings.TrimSpace(hk)
+				if key == "" {
+					continue
+				}
+				val := strings.TrimSpace(fmt.Sprint(hv))
+				if val == "" {
+					continue
+				}
+				headers[key] = val
+			}
+		case map[string]string:
+			for hk, hv := range v {
+				key := strings.TrimSpace(hk)
+				val := strings.TrimSpace(hv)
+				if key == "" || val == "" {
+					continue
+				}
+				headers[key] = val
+			}
+		}
+	}
+	userAgent := ""
+	if v, ok := metadata["user_agent"].(string); ok {
+		userAgent = v
+	} else if v, ok := metadata["userAgent"].(string); ok {
+		userAgent = v
+	} else if v, ok := metadata["ua"].(string); ok {
+		userAgent = v
+	}
+	userAgent = strings.TrimSpace(userAgent)
+	if userAgent != "" {
+		if _, exists := headers["User-Agent"]; !exists {
+			headers["User-Agent"] = userAgent
+		}
+	}
+	if len(headers) == 0 {
+		return nil
+	}
+	return headers
 }
 
 // splitGeminiProjectIDs extracts and deduplicates project IDs from metadata.
