@@ -296,6 +296,9 @@ func formatAuthInfo(info upstreamRequestLog) string {
 	if trimmed := strings.TrimSpace(info.AuthLabel); trimmed != "" {
 		parts = append(parts, fmt.Sprintf("label=%s", trimmed))
 	}
+	if ua := strings.TrimSpace(info.Headers.Get("User-Agent")); ua != "" {
+		parts = append(parts, fmt.Sprintf("ua=%s", ua))
+	}
 
 	authType := strings.ToLower(strings.TrimSpace(info.AuthType))
 	authValue := strings.TrimSpace(info.AuthValue)

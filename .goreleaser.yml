@@ -1,5 +1,6 @@
-version: 2
+﻿version: 2
 
+project_name: cli-proxy-api
 builds:
   - id: "cli-proxy-api"
     env:
@@ -40,3 +41,4 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+

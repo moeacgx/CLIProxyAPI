@@ -20,8 +20,11 @@ import (
 )
 
 const (
-	DefaultPanelGitHubRepository = "https://github.com/moeacgx/CLIProxyAPI-Management-Center"
-	DefaultPprofAddr             = "127.0.0.1:8316"
+	DefaultPanelGitHubRepository         = "https://github.com/moeacgx/CLIProxyAPI-Management-Center"
+	DefaultPprofAddr                     = "127.0.0.1:8316"
+	DefaultSelfUpdateAssetPrefix         = "cli-proxy-api"
+	DefaultSelfUpdateWorkDir             = "data/self_update"
+	DefaultSelfUpdateRestartDelaySeconds = 2
 )
 
 // Config represents the application's configuration, loaded from a YAML file.
@@ -184,6 +187,20 @@ type RemoteManagement struct {
 	// PanelGitHubRepository overrides the GitHub repository used to fetch the management panel asset.
 	// Accepts either a repository URL (https://github.com/org/repo) or an API releases endpoint.
 	PanelGitHubRepository string `yaml:"panel-github-repository"`
+	// SelfUpdateEnabled toggles server-side self update via GitHub Release assets.
+	SelfUpdateEnabled bool `yaml:"self-update-enabled"`
+	// SelfUpdateRepository sets the GitHub repository for server update checks (owner/repo or full URL).
+	SelfUpdateRepository string `yaml:"self-update-repository"`
+	// SelfUpdateGitHubToken optionally provides a GitHub token for private repos or higher rate limits.
+	SelfUpdateGitHubToken string `yaml:"self-update-github-token"`
+	// SelfUpdateAssetPrefix overrides the expected release asset prefix (default: cli-proxy-api).
+	SelfUpdateAssetPrefix string `yaml:"self-update-asset-prefix"`
+	// SelfUpdateWorkDir sets the directory used to download and stage updates (default: data/self_update).
+	SelfUpdateWorkDir string `yaml:"self-update-work-dir"`
+	// SelfUpdateRestartDelaySeconds delays exit to allow the HTTP response to complete.
+	SelfUpdateRestartDelaySeconds int `yaml:"self-update-restart-delay-seconds"`
+	// SelfUpdateExecutableName optionally overrides the executable name inside the release archive.
+	SelfUpdateExecutableName string `yaml:"self-update-executable-name"`
 }
 
 // QuotaExceeded defines the behavior when API quota limits are exceeded.
@@ -614,6 +631,20 @@ func LoadConfigOptional(configFile string, optional bool) (*Config, error) {
 	if cfg.RemoteManagement.PanelGitHubRepository == "" {
 		cfg.RemoteManagement.PanelGitHubRepository = DefaultPanelGitHubRepository
 	}
+	cfg.RemoteManagement.SelfUpdateRepository = strings.TrimSpace(cfg.RemoteManagement.SelfUpdateRepository)
+	cfg.RemoteManagement.SelfUpdateGitHubToken = strings.TrimSpace(cfg.RemoteManagement.SelfUpdateGitHubToken)
+	cfg.RemoteManagement.SelfUpdateAssetPrefix = strings.TrimSpace(cfg.RemoteManagement.SelfUpdateAssetPrefix)
+	if cfg.RemoteManagement.SelfUpdateAssetPrefix == "" {
+		cfg.RemoteManagement.SelfUpdateAssetPrefix = DefaultSelfUpdateAssetPrefix
+	}
+	cfg.RemoteManagement.SelfUpdateWorkDir = strings.TrimSpace(cfg.RemoteManagement.SelfUpdateWorkDir)
+	if cfg.RemoteManagement.SelfUpdateWorkDir == "" {
+		cfg.RemoteManagement.SelfUpdateWorkDir = DefaultSelfUpdateWorkDir
+	}
+	if cfg.RemoteManagement.SelfUpdateRestartDelaySeconds <= 0 {
+		cfg.RemoteManagement.SelfUpdateRestartDelaySeconds = DefaultSelfUpdateRestartDelaySeconds
+	}
+	cfg.RemoteManagement.SelfUpdateExecutableName = strings.TrimSpace(cfg.RemoteManagement.SelfUpdateExecutableName)
 
 	cfg.Pprof.Addr = strings.TrimSpace(cfg.Pprof.Addr)
 	if cfg.Pprof.Addr == "" {
@@ -1883,4 +1914,3 @@ func removeLegacyAuthBlock(root *yaml.Node) {
 	}
 	removeMapKey(root, "auth")
 }
-

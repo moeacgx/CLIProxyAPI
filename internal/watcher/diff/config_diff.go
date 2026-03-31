@@ -264,6 +264,42 @@ func BuildConfigChangeDetails(oldCfg, newCfg *config.Config) []string {
 	if oldPanelRepo != newPanelRepo {
 		changes = append(changes, fmt.Sprintf("remote-management.panel-github-repository: %s -> %s", oldPanelRepo, newPanelRepo))
 	}
+	if oldCfg.RemoteManagement.SelfUpdateEnabled != newCfg.RemoteManagement.SelfUpdateEnabled {
+		changes = append(changes, fmt.Sprintf("remote-management.self-update-enabled: %t -> %t", oldCfg.RemoteManagement.SelfUpdateEnabled, newCfg.RemoteManagement.SelfUpdateEnabled))
+	}
+	oldUpdateRepo := strings.TrimSpace(oldCfg.RemoteManagement.SelfUpdateRepository)
+	newUpdateRepo := strings.TrimSpace(newCfg.RemoteManagement.SelfUpdateRepository)
+	if oldUpdateRepo != newUpdateRepo {
+		changes = append(changes, fmt.Sprintf("remote-management.self-update-repository: %s -> %s", oldUpdateRepo, newUpdateRepo))
+	}
+	oldUpdatePrefix := strings.TrimSpace(oldCfg.RemoteManagement.SelfUpdateAssetPrefix)
+	newUpdatePrefix := strings.TrimSpace(newCfg.RemoteManagement.SelfUpdateAssetPrefix)
+	if oldUpdatePrefix != newUpdatePrefix {
+		changes = append(changes, fmt.Sprintf("remote-management.self-update-asset-prefix: %s -> %s", oldUpdatePrefix, newUpdatePrefix))
+	}
+	oldUpdateWorkDir := strings.TrimSpace(oldCfg.RemoteManagement.SelfUpdateWorkDir)
+	newUpdateWorkDir := strings.TrimSpace(newCfg.RemoteManagement.SelfUpdateWorkDir)
+	if oldUpdateWorkDir != newUpdateWorkDir {
+		changes = append(changes, fmt.Sprintf("remote-management.self-update-work-dir: %s -> %s", oldUpdateWorkDir, newUpdateWorkDir))
+	}
+	if oldCfg.RemoteManagement.SelfUpdateRestartDelaySeconds != newCfg.RemoteManagement.SelfUpdateRestartDelaySeconds {
+		changes = append(changes, fmt.Sprintf("remote-management.self-update-restart-delay-seconds: %d -> %d", oldCfg.RemoteManagement.SelfUpdateRestartDelaySeconds, newCfg.RemoteManagement.SelfUpdateRestartDelaySeconds))
+	}
+	oldUpdateExec := strings.TrimSpace(oldCfg.RemoteManagement.SelfUpdateExecutableName)
+	newUpdateExec := strings.TrimSpace(newCfg.RemoteManagement.SelfUpdateExecutableName)
+	if oldUpdateExec != newUpdateExec {
+		changes = append(changes, fmt.Sprintf("remote-management.self-update-executable-name: %s -> %s", oldUpdateExec, newUpdateExec))
+	}
+	if oldCfg.RemoteManagement.SelfUpdateGitHubToken != newCfg.RemoteManagement.SelfUpdateGitHubToken {
+		switch {
+		case oldCfg.RemoteManagement.SelfUpdateGitHubToken == "" && newCfg.RemoteManagement.SelfUpdateGitHubToken != "":
+			changes = append(changes, "remote-management.self-update-github-token: created")
+		case oldCfg.RemoteManagement.SelfUpdateGitHubToken != "" && newCfg.RemoteManagement.SelfUpdateGitHubToken == "":
+			changes = append(changes, "remote-management.self-update-github-token: deleted")
+		default:
+			changes = append(changes, "remote-management.self-update-github-token: updated")
+		}
+	}
 	if oldCfg.RemoteManagement.SecretKey != newCfg.RemoteManagement.SecretKey {
 		switch {
 		case oldCfg.RemoteManagement.SecretKey == "" && newCfg.RemoteManagement.SecretKey != "":
