@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -2938,9 +2939,13 @@ func debugLogAuthSelection(entry *log.Entry, auth *Auth, provider string, model 
 	}
 	accountType, accountInfo := auth.AccountInfo()
 	proxyInfo := auth.ProxyInfo()
+	userAgent := authUserAgentForLog(auth)
 	suffix := ""
 	if proxyInfo != "" {
 		suffix = " " + proxyInfo
+	}
+	if userAgent != "" {
+		suffix += " ua=" + userAgent
 	}
 	switch accountType {
 	case "api_key":
@@ -2949,6 +2954,52 @@ func debugLogAuthSelection(entry *log.Entry, auth *Auth, provider string, model 
 		ident := formatOauthIdentity(auth, provider, accountInfo)
 		entry.Debugf("Use OAuth %s for model %s%s", ident, model, suffix)
 	}
+}
+
+func authUserAgentForLog(auth *Auth) string {
+	if auth == nil {
+		return ""
+	}
+	if auth.Attributes != nil {
+		keys := []string{"header:User-Agent", "header:user-agent", "user_agent", "userAgent", "ua"}
+		for _, key := range keys {
+			if v := strings.TrimSpace(auth.Attributes[key]); v != "" {
+				return v
+			}
+		}
+	}
+	if auth.Metadata != nil {
+		if v, ok := auth.Metadata["user_agent"].(string); ok && strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+		if v, ok := auth.Metadata["userAgent"].(string); ok && strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+		if v, ok := auth.Metadata["ua"].(string); ok && strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+		if raw := auth.Metadata["headers"]; raw != nil {
+			switch headers := raw.(type) {
+			case map[string]any:
+				for k, v := range headers {
+					if strings.EqualFold(k, "User-Agent") {
+						if ua := strings.TrimSpace(fmt.Sprint(v)); ua != "" {
+							return ua
+						}
+					}
+				}
+			case map[string]string:
+				for k, v := range headers {
+					if strings.EqualFold(k, "User-Agent") {
+						if ua := strings.TrimSpace(v); ua != "" {
+							return ua
+						}
+					}
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func formatOauthIdentity(auth *Auth, provider string, accountInfo string) string {
