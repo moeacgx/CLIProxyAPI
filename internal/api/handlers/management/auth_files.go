@@ -464,6 +464,9 @@ func (h *Handler) buildAuthFileEntry(auth *coreauth.Auth) gin.H {
 			}
 		}
 	}
+	if ua := authUserAgent(auth); ua != "" {
+		entry["user_agent"] = ua
+	}
 	return entry
 }
 
@@ -505,6 +508,52 @@ func extractCodexIDTokenClaims(auth *coreauth.Auth) gin.H {
 		return nil
 	}
 	return result
+}
+
+func authUserAgent(auth *coreauth.Auth) string {
+	if auth == nil {
+		return ""
+	}
+	if auth.Attributes != nil {
+		keys := []string{"header:User-Agent", "header:user-agent", "user_agent", "userAgent", "ua"}
+		for _, key := range keys {
+			if v := strings.TrimSpace(auth.Attributes[key]); v != "" {
+				return v
+			}
+		}
+	}
+	if auth.Metadata != nil {
+		if v, ok := auth.Metadata["user_agent"].(string); ok && strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+		if v, ok := auth.Metadata["userAgent"].(string); ok && strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+		if v, ok := auth.Metadata["ua"].(string); ok && strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
+		if raw := auth.Metadata["headers"]; raw != nil {
+			switch headers := raw.(type) {
+			case map[string]any:
+				for k, v := range headers {
+					if strings.EqualFold(k, "User-Agent") {
+						if ua := strings.TrimSpace(fmt.Sprint(v)); ua != "" {
+							return ua
+						}
+					}
+				}
+			case map[string]string:
+				for k, v := range headers {
+					if strings.EqualFold(k, "User-Agent") {
+						if ua := strings.TrimSpace(v); ua != "" {
+							return ua
+						}
+					}
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func authEmail(auth *coreauth.Auth) string {
@@ -2770,3 +2819,5 @@ func PopulateAuthContext(ctx context.Context, c *gin.Context) context.Context {
 	}
 	return coreauth.WithRequestInfo(ctx, info)
 }
+
+
