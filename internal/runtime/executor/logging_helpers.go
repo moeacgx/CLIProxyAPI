@@ -51,6 +51,9 @@ type upstreamAttempt struct {
 
 // recordAPIRequest stores the upstream request metadata in Gin context for request logging.
 func recordAPIRequest(ctx context.Context, cfg *config.Config, info upstreamRequestLog) {
+	if cfg != nil && cfg.Debug {
+		logAuthSelection(ctx, info)
+	}
 	if cfg == nil || !cfg.RequestLog {
 		return
 	}
@@ -283,6 +286,26 @@ func writeHeaders(builder *strings.Builder, headers http.Header) {
 			builder.WriteString(fmt.Sprintf("%s: %s\n", key, masked))
 		}
 	}
+}
+
+func logAuthSelection(ctx context.Context, info upstreamRequestLog) {
+	provider := strings.TrimSpace(info.Provider)
+	authID := strings.TrimSpace(info.AuthID)
+	ua := strings.TrimSpace(info.Headers.Get("User-Agent"))
+	if provider == "" && authID == "" && ua == "" {
+		return
+	}
+	entry := logWithRequestID(ctx)
+	if provider != "" {
+		entry = entry.WithField("provider", provider)
+	}
+	if authID != "" {
+		entry = entry.WithField("auth_id", authID)
+	}
+	if ua != "" {
+		entry = entry.WithField("ua", ua)
+	}
+	entry.Debug("auth selected")
 }
 
 func formatAuthInfo(info upstreamRequestLog) string {
