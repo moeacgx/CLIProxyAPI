@@ -45,9 +45,41 @@ var (
 // init initializes the shared logger setup.
 func init() {
 	logging.SetupBaseLogger()
+	Version = resolveBuildVersion(Version)
 	buildinfo.Version = Version
 	buildinfo.Commit = Commit
 	buildinfo.BuildDate = BuildDate
+}
+
+func resolveBuildVersion(current string) string {
+	if v := readVersionNearExecutable(); v != "" {
+		return v
+	}
+	if v := readVersionFile("VERSION"); v != "" {
+		return v
+	}
+	trimmed := strings.TrimSpace(current)
+	if trimmed == "" {
+		return "dev"
+	}
+	return trimmed
+}
+
+func readVersionNearExecutable() string {
+	execPath, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	dir := filepath.Dir(execPath)
+	return readVersionFile(filepath.Join(dir, "VERSION"))
+}
+
+func readVersionFile(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(data))
 }
 
 // main is the entry point of the application.

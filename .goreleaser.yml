@@ -27,6 +27,7 @@ archives:
       - LICENSE
       - README.md
       - README_CN.md
+      - VERSION
       - config.example.yaml
 
 checksum:

@@ -517,6 +517,7 @@ func applyUpdate(ctx context.Context, snapshot configSnapshot, asset *releaseAss
 	if err := replaceBinary(newBinaryPath, targetPath, backupDir); err != nil {
 		return err
 	}
+	copyVersionFile(stageDir, execDir)
 	return nil
 }
 
@@ -734,6 +735,44 @@ func replaceBinary(newBinary, targetPath, backupDir string) error {
 		return fmt.Errorf("检查旧版本失败: %w", err)
 	}
 	return nil
+}
+
+func copyVersionFile(stageDir, execDir string) {
+	if stageDir == "" || execDir == "" {
+		return
+	}
+	versionPath := findVersionFile(stageDir)
+	if versionPath == "" {
+		return
+	}
+	targetPath := filepath.Join(execDir, "VERSION")
+	if err := copyFile(versionPath, targetPath, 0o644); err != nil {
+		log.WithError(err).Warn("self-update: failed to update VERSION file")
+	}
+}
+
+func findVersionFile(root string) string {
+	if root == "" {
+		return ""
+	}
+	var candidate string
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if strings.EqualFold(d.Name(), "VERSION") {
+			candidate = path
+			return errSelfUpdateFound
+		}
+		return nil
+	})
+	if err != nil && !errors.Is(err, errSelfUpdateFound) {
+		return ""
+	}
+	return candidate
 }
 
 func copyFile(src, dest string, mode os.FileMode) error {

@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/router-for-me/CLIProxyAPI/v6/internal/managementasset"
 	"github.com/router-for-me/CLIProxyAPI/v6/internal/selfupdate"
 )
 
@@ -53,6 +54,15 @@ func (h *Handler) ConfirmUpdate(c *gin.Context) {
 	if status.LastError != "" {
 		c.JSON(http.StatusBadRequest, status)
 		return
+	}
+	if h.cfg != nil {
+		staticDir := managementasset.StaticDir(h.configFilePath)
+		managementasset.EnsureLatestManagementHTML(
+			c.Request.Context(),
+			staticDir,
+			h.cfg.ProxyURL,
+			h.cfg.RemoteManagement.PanelGitHubRepository,
+		)
 	}
 	c.JSON(http.StatusOK, status)
 }

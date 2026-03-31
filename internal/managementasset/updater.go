@@ -234,6 +234,18 @@ func EnsureLatestManagementHTML(ctx context.Context, staticDir string, proxyURL 
 
 		asset, remoteHash, err := fetchLatestAsset(ctx, client, releaseURL)
 		if err != nil {
+			if data, rawHash, rawErr := fetchRawManagementHTML(ctx, client, panelRepository); rawErr == nil && len(data) > 0 {
+				if rawHash != "" && localHash != "" && strings.EqualFold(rawHash, localHash) {
+					log.Debug("management asset is already up to date")
+					return nil, nil
+				}
+				if errWrite := atomicWriteFile(localPath, data); errWrite != nil {
+					log.WithError(errWrite).Warn("failed to update management asset from raw repository")
+					return nil, nil
+				}
+				log.Warnf("management asset updated from raw repository without digest verification (hash=%s)", rawHash)
+				return nil, nil
+			}
 			if localFileMissing {
 				log.WithError(err).Warn("failed to fetch latest management release information, trying fallback page")
 				if ensureFallbackManagementHTML(ctx, client, localPath) {
@@ -330,6 +342,75 @@ func resolveReleaseURL(repo string) string {
 	}
 
 	return defaultManagementReleaseURL
+}
+
+func fetchRawManagementHTML(ctx context.Context, client *http.Client, repository string) ([]byte, string, error) {
+	rawURL := resolveRawURL(repository)
+	if rawURL == "" {
+		return nil, "", fmt.Errorf("raw management url unavailable")
+	}
+	return downloadAsset(ctx, client, rawURL)
+}
+
+func resolveRawURL(repo string) string {
+	repo = strings.TrimSpace(repo)
+	if repo == "" {
+		return ""
+	}
+	if strings.HasPrefix(repo, "http://") || strings.HasPrefix(repo, "https://") {
+		parsed, err := url.Parse(repo)
+		if err != nil || parsed.Host == "" {
+			return ""
+		}
+		host := strings.ToLower(parsed.Host)
+		path := strings.Trim(parsed.Path, "/")
+		lowerPath := strings.ToLower(path)
+		if strings.Contains(host, "raw.githubusercontent.com") {
+			if strings.Contains(lowerPath, strings.ToLower(managementAssetName)) {
+				return repo
+			}
+			return repo
+		}
+		if strings.Contains(host, "github.com") {
+			parts := strings.Split(path, "/")
+			if len(parts) >= 2 {
+				owner := parts[0]
+				repoName := strings.TrimSuffix(parts[1], ".git")
+				branch := "main"
+				if len(parts) >= 4 && (parts[2] == "tree" || parts[2] == "blob") {
+					branch = parts[3]
+				}
+				return fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/%s/%s", owner, repoName, branch, managementAssetName)
+			}
+		}
+		if strings.Contains(host, "api.github.com") {
+			parts := strings.Split(path, "/")
+			for i := 0; i+2 < len(parts); i++ {
+				if parts[i] == "repos" {
+					owner := parts[i+1]
+					repoName := strings.TrimSuffix(parts[i+2], ".git")
+					if owner != "" && repoName != "" {
+						return fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/main/%s", owner, repoName, managementAssetName)
+					}
+				}
+			}
+		}
+		if strings.HasSuffix(lowerPath, strings.ToLower(managementAssetName)) {
+			return repo
+		}
+		return ""
+	}
+
+	parts := strings.Split(strings.Trim(repo, "/"), "/")
+	if len(parts) < 2 {
+		return ""
+	}
+	owner := parts[0]
+	repoName := strings.TrimSuffix(parts[1], ".git")
+	if owner == "" || repoName == "" {
+		return ""
+	}
+	return fmt.Sprintf("https://raw.githubusercontent.com/%s/%s/main/%s", owner, repoName, managementAssetName)
 }
 
 func fetchLatestAsset(ctx context.Context, client *http.Client, releaseURL string) (*releaseAsset, string, error) {
