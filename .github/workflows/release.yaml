@@ -4,7 +4,12 @@ on:
   push:
     # run only against tags
     tags:
-      - '*'
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '版本号 (如 v1.0.0)'
+        required: true
 
 permissions:
   contents: write
@@ -21,13 +26,21 @@ jobs:
           git fetch --depth 1 https://github.com/router-for-me/models.git main
           git show FETCH_HEAD:models.json > internal/registry/models/models.json
       - run: git fetch --force --tags
+      - name: 切换到指定 Tag
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git checkout "refs/tags/${{ github.event.inputs.tag }}"
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
       - name: Generate Build Metadata
         run: |
-          echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.tag }}" >> $GITHUB_ENV
+          else
+            echo "VERSION=${GITHUB_REF_NAME}" >> $GITHUB_ENV
+          fi
           echo COMMIT=`git rev-parse --short HEAD` >> $GITHUB_ENV
           echo BUILD_DATE=`date -u +%Y-%m-%dT%H:%M:%SZ` >> $GITHUB_ENV
       - uses: goreleaser/goreleaser-action@v4

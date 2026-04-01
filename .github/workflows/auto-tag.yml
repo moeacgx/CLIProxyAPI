@@ -1,4 +1,4 @@
-﻿name: 自动创建 Tag
+name: 自动创建 Tag
 
 on:
   push:
@@ -14,12 +14,18 @@ jobs:
       contents: write
 
     steps:
+      - name: 检查 RELEASE_PAT
+        run: |
+          if [ -z "${{ secrets.RELEASE_PAT }}" ]; then
+            echo "缺少 RELEASE_PAT（请在仓库 Secrets 中配置）"
+            exit 1
+          fi
+
       - name: 检出代码
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          # 需要从 workflow 触发 build 时，建议配置 RELEASE_PAT
-          token: ${{ secrets.RELEASE_PAT || github.token }}
+          token: ${{ secrets.RELEASE_PAT }}
 
       - name: 解析版本号
         id: version
